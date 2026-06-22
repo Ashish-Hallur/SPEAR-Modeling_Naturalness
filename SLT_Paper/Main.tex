@@ -41,7 +41,8 @@ speech-to-speech evaluation, conversational naturalness, conditional generative 
 \section{Introduction}
 Spoken dialogue is shaped by more than lexical content.
 Natural responses occupy context-dependent ranges of duration, speaking rate, pausing, pitch behavior, affective tone, and speaker-state cues.
-As S2S systems move from read-speech synthesis toward interactive spoken agents, evaluation methods must capture whether an output is plausible for the local conversational context rather than merely intelligible or textually correct.
+These dimensions are central to turn-taking and interactional coordination, where speakers use timing, prosody, and syntactic structure to manage smooth exchanges \cite{riest_anticipation_2015, levinson_turn-taking_2016, koiso_analysis_1998}.
+As S2S systems move from read-speech synthesis toward interactive spoken agents, evaluation methods must capture whether an output is plausible for the local conversational context rather than merely intelligible or textually correct \cite{omahony_combining_2022}.
 
 Many current evaluation practices for spoken dialogue systems remain centered on automatic speech recognition, task completion, text similarity, or global human ratings.
 These signals are useful, but they do not directly explain why a generated response sounds natural or unnatural as speech.
@@ -70,11 +71,14 @@ Across a 16-run validation sweep, dual embedding with $H=3$ produces the best MS
 S2S evaluation has often inherited methods from automatic speech recognition, text generation, and text-to-speech evaluation.
 These approaches measure important aspects of system quality, but they can underrepresent conversational timing, turn-taking fit, prosodic expressivity, and context-appropriate response behavior.
 Subjective ratings remain essential, yet they are expensive to collect and often provide limited diagnostic detail.
+Recent work on conversational agents and speech synthesis has further shown that speech rate, prosody, and interaction partner can shape user experience and spoken behavior, reinforcing the need for evaluation signals that remain in the speech domain \cite{dowding_user_2024, xie_speaking_2024, jung_comparison_2025}.
 The goal of the present work is not to replace human evaluation, but to provide a scalable speech-native diagnostic that can identify which measurable dimensions of a response deviate from natural conversational behavior.
 
 \subsection{Conversational Prosody and Rhythm}
 Natural conversation is coordinated through timing and prosodic cues that help manage turns, signal stance, and shape perceived engagement.
-Prior work has shown that conversational speech differs from read speech in both prosodic and temporal structure, and that speaking rate, pausing, and pitch variation shift with speaker traits and interactional state.
+Prior work has shown that conversational speech differs from read speech in both prosodic and temporal structure, and that speaking rate, pausing, and pitch variation shift with speaker traits and interactional state \cite{howell1991comparison, hazan2010does, tauroza_speech_1990, goldman1958speech, wynn_conversational_2024}.
+Prosodic variation, particularly $F_0$ level and range, is associated with communicative intent, emotional expression, stress, and discourse structure \cite{banziger_role_2005, pell_emotional_2011, xu_speech_2005, sluijter_acoustic_1996, sluijter_spectral_1996}.
+Temporal rhythm similarly depends on pause structure and speaking-rate variation, which have been studied in spontaneous and conversational speech across multiple measurement settings \cite{campione2002large, pellegrino_automatic_2004, jiao_estimating_2015, morgan_combining_1998}.
 This motivates an evaluation design in which naturalness is judged relative to a matched prompt and context, not against a single global baseline.
 In this work, the empirical reference space is built within the current pipeline: conversational turns are segmented, filtered, aligned to word timing and VAD, converted into adjacent prompt-response pairs, and represented with interpretable prosodic, rhythmic, affective, and profile-derived measurements.
 
@@ -94,6 +98,7 @@ In the proposed evaluator, these embeddings augment the prompt-side conditioning
 \section{Dataset and Metrics}
 \subsection{Paired Prompt-Response Construction}
 We construct paired examples from the Seamless Interaction dataset, a large corpus of dyadic English conversations containing naturalistic and improvised interactions.
+The corpus contains thousands of hours of face-to-face dyadic interaction, making it suitable for estimating conversational reference distributions at scale \cite{seamless_interaction}.
 Each training example corresponds to an adjacent prompt-response pair.
 The prompt segment provides current-turn conditioning information, and the following response segment provides the target metric vector.
 
@@ -113,27 +118,29 @@ This split prevents a connected speaker component from appearing in more than on
 
 \subsection{Prosodic and Temporal Metrics}
 For each prompt and response segment, we compute prosodic measurements from the corresponding audio interval.
-Fundamental frequency is estimated with Praat's autocorrelation pitch tracker through Parselmouth using a 75--500 Hz range.
+Fundamental frequency is estimated with Praat's autocorrelation pitch tracker through Parselmouth using a 75--500 Hz range \cite{jadoul2018introducing, vogel2009standardization}.
 Only voiced frames are used for $F_0$ statistics.
 The $F_0$ standard deviation and range are computed after trimming to the 10th--90th percentile interval, and voiced ratio records the fraction of voiced pitch frames.
-Segments with too little voiced support are marked by status fields and can be excluded from model training.
+Segments with too little voiced support are marked by status fields and can be excluded from model training, following the broader principle that unstable voice measurements should be surfaced rather than silently mixed into acoustic summaries \cite{titze_toward_1994}.
 
 Temporal features are computed from word timings that fall inside the refined segment boundaries.
 The local speech rate is the number of words per minute over the full segment duration, while articulation rate divides by the non-pause duration.
 Pauses are inter-word gaps of at least 0.2 s.
 Pause ratio is total pause time divided by segment duration, and mean pause duration is the average duration of detected pauses, with zero used when no pause is present.
-These computations are applied symmetrically to prompts and responses so that prompt-side timing can condition the model and response-side timing can be predicted and scored.
+The 0.2 s threshold is a practical convention for silent pause analysis, and word-per-minute rate remains closely tied to perceived speech tempo \cite{campione2002large, iwarsson2023measuring}.
+These computations are applied symmetrically to prompts and responses so that prompt-side timing can condition the model and response-side timing can be predicted and scored \cite{goldman1956determinants}.
 
 \subsection{Vox-Profile-Derived Annotations}
 The dataset does not provide all speaker and interaction-state annotations needed for conditional naturalness modeling.
-We therefore augment the pair table with model-derived Vox-Profile annotations for age, gender posterior information, and dimensional affect.
-Audio is converted to mono, resampled to 16 kHz, RMS-normalized, and passed through Silero VAD to retain speech regions.
+We therefore augment the pair table with model-derived Vox-Profile annotations for age, gender posterior information, and dimensional affect \cite{feng2025vox}.
+Audio is converted to mono, resampled to 16 kHz, RMS-normalized, and passed through Silero VAD to retain speech regions \cite{Silero_VAD}.
 Speech-only audio is split into chunks of at most 15 s, retaining chunks of at least 3 s.
 
 Static speaker-profile estimates are computed with a WavLM-based age and sex model over all speech chunks available for each speaker channel, then averaged to produce age, gender label, and gender confidence fields.
 Dynamic affect estimates are computed for each prompt and response segment with a WavLM-based arousal-valence-dominance model, again averaging over valid speech chunks.
 The age and gender outputs are treated as speech-model profile estimates rather than ground-truth demographic attributes.
 Arousal, valence, and dominance are used as continuous descriptors of interactional state.
+These conditioning variables are included because prior work links habitual $F_0$ to speaker traits, conversational timing to age and fluency-related behavior, and prosodic expressivity to emotional activation and dominance-related state \cite{traunmuller_acoustic_2000, tauroza_speech_1990, goldman1958speech, banziger_role_2005, banse1996acoustic, geng2020acoustic}.
 Because these annotations are predicted rather than self-reported, final interpretation should distinguish model-conditioned stratification from claims about true demographic attributes.
 
 \subsection{Merged Tabular Table}
@@ -302,6 +309,7 @@ Dual embed & 7 & 0.04921 [0.04727, 0.05124] & 0.95516 & 0.93812 \\
 
 Table~\ref{tab:multiturn_sweep} shows that the best variant by MSE and $R^2$ is dual embedding with a three-turn history window.
 This model achieves MSE 0.01197 and $R^2=0.98910$.
+
 The strongest tabular-only baseline is the five-turn history model, with MSE 0.01245 and $R^2=0.98865$.
 Thus, the dual-embedding $H=3$ model reduces MSE by 3.90\% relative to the strongest tabular-only multiturn model.
 This is the only embedding condition and history window in the sweep that improves over the best tabular-only result by MSE.
@@ -322,24 +330,7 @@ We construct a paired prompt-response metric table from natural dyadic interacti
 The validation sweep shows that history length and embedding choice interact strongly: dual Trillsson plus VoxProfile/Whisper conditioning is beneficial at a three-turn window and is the only evaluated embedding setting that improves MSE over the strongest tabular-only model.
 These results support multiturn, distributional evaluation as a practical route toward interpretable S2S naturalness scoring, while also showing that speech embeddings must be fused with an appropriate conversational context window to be useful.
 
-\begin{thebibliography}{00}
-\bibitem{kingma2013vae}
-D. P. Kingma and M. Welling, ``Auto-encoding variational Bayes,'' in \emph{International Conference on Learning Representations}, 2014.
-
-\bibitem{sohn2015cvae}
-K. Sohn, H. Lee, and X. Yan, ``Learning structured output representation using deep conditional generative models,'' in \emph{Advances in Neural Information Processing Systems}, 2015.
-
-\bibitem{radford2023whisper}
-A. Radford, J. W. Kim, T. Xu, G. Brockman, C. McLeavey, and I. Sutskever, ``Robust speech recognition via large-scale weak supervision,'' in \emph{International Conference on Machine Learning}, 2023.
-
-\bibitem{shor2022trillsson}
-J. Shor, A. Jansen, R. Maor, O. Plakal, D. Emanuel, O. Lang, R. Tuval, F. d. C. Quitry, M. Tagliasacchi, I. Shavitt, and Y. Adi, ``Towards learning a universal non-semantic representation of speech,'' in \emph{Interspeech}, 2020.
-
-\bibitem{seamless_interaction}
-Seamless Communication Team, ``Seamless Interaction dataset,'' dataset documentation, 2024.
-
-\bibitem{feng2025vox}
-T. Feng, A. Hallur, L. Moro-Velazquez, and N. Dehak, ``Vox-Profile: Speech foundation models for static and dynamic speaker profiling,'' 2025.
-\end{thebibliography}
+\bibliographystyle{IEEEtran}
+\bibliography{newbib}
 
 \end{document}
