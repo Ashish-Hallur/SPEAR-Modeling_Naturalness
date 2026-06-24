@@ -14,14 +14,16 @@
 
 \begin{document}
 
-\title{Prompt-Conditioned Naturalness Distributions for Speech-to-Speech Evaluation}
-
-\author{
-\IEEEauthorblockN{Author Names Omitted for Review}
-\IEEEauthorblockA{
-Affiliations omitted for review\\
-Email omitted for review}
+\title{Prompt-Conditioned Naturalness Distributions for Speech-to-Speech Evaluation\\
+\thanks{This work was supported by the SPEAR project. Add full funding acknowledgments before submission.}
 }
+
+\author{Anonymized submission to IEEE SLT 2026}
+% \author{\IEEEauthorblockN{Thomas Thebaud\IEEEauthorrefmark{1}, Yuzhe Wang\IEEEauthorrefmark{1}, Hao Zhang\IEEEauthorrefmark{1}, Sathvik Manikantan Napa Ugandhar\IEEEauthorrefmark{1}, Ashish Hallur\IEEEauthorrefmark{1},\\ 
+%Georgi Tinchev\IEEEauthorrefmark{2}, Venkatesh Ravichandran\IEEEauthorrefmark{2}, Laureano Moro-Velazquez\IEEEauthorrefmark{1}}
+%\IEEEauthorblockA{\IEEEauthorrefmark{1}\textit{Department of Electrical and Computer Engineering, Johns Hopkins University}, Baltimore, MD, USA\\
+% Email: tthebau1@jhu.edu}
+% \IEEEauthorblockA{\IEEEauthorrefmark{2}\textit{Amazon Inc.}, Seattle, WA, USA}}
 
 \maketitle
 
@@ -30,7 +32,7 @@ Speech-to-speech (S2S) systems are increasingly capable of producing fluent spok
 We propose a prompt-conditioned evaluation framework that learns the expected distribution of response-side speech metrics from natural dyadic interactions.
 Given current prompt-side acoustic, temporal, affective, speaker-profile, conversational-context, speech-embedding, and multiturn history features, the model predicts a distribution over target response metrics including duration, lexical length, prosody, rhythm, pausing, affect, and speaker-profile estimates.
 An S2S output can then be scored by extracting the same response metrics and comparing them against the learned conditional distribution for the corresponding prompt.
-We report a multiturn conditional variational autoencoder (CVAE) sweep over history windows of one, three, five, and seven previous turns, comparing tabular-only conditioning, Trillsson embeddings, VoxProfile/Whisper embeddings, and dual embedding fusion.
+We report a multiturn conditional variational autoencoder (CVAE) sweep over history windows of one, three, five, and seven previous turns, comparing tabular-only conditioning, Trillsson embeddings, Whisper embeddings, and dual embedding fusion.
 The best validation result is obtained by dual embedding fusion with a three-turn history window, which achieves the lowest scaled mean squared error (MSE) and highest $R^2$ among the evaluated variants.
 \end{abstract}
 
@@ -117,14 +119,14 @@ The current pipeline uses a speaker-component split: dyads are represented as a 
 This split prevents a connected speaker component from appearing in more than one partition.
 
 \subsection{Prosodic and Temporal Metrics}
-For each prompt and response segment, we compute prosodic measurements from the corresponding audio interval.
+For each prompt-response segment, we compute prosodic measurements from the corresponding audio interval.
 Fundamental frequency is estimated with Praat's autocorrelation pitch tracker through Parselmouth using a 75--500 Hz range \cite{jadoul2018introducing, vogel2009standardization}.
 Only voiced frames are used for $F_0$ statistics.
 The $F_0$ standard deviation and range are computed after trimming to the 10th--90th percentile interval, and voiced ratio records the fraction of voiced pitch frames.
-Segments with too little voiced support are marked by status fields and can be excluded from model training, following the broader principle that unstable voice measurements should be surfaced rather than silently mixed into acoustic summaries \cite{titze_toward_1994}.
+Status fields mark segments with too little voiced support and can be excluded from model training, following the broader principle that unstable voice measurements should be surfaced rather than silently mixed into acoustic summaries \cite{titze_toward_1994}.
 
 Temporal features are computed from word timings that fall inside the refined segment boundaries.
-The local speech rate is the number of words per minute over the full segment duration, while articulation rate divides by the non-pause duration.
+The local speech rate is the number of words per minute over the full segment duration, while articulation rate is divided by the non-pause duration.
 Pauses are inter-word gaps of at least 0.2 s.
 Pause ratio is total pause time divided by segment duration, and mean pause duration is the average duration of detected pauses, with zero used when no pause is present.
 The 0.2 s threshold is a practical convention for silent pause analysis, and word-per-minute rate remains closely tied to perceived speech tempo \cite{campione2002large, iwarsson2023measuring}.
@@ -183,8 +185,8 @@ The CVAE introduces a latent variable $z$ to represent conditional response vari
 The encoder approximates $q_{\phi}(z \mid x_t,h_t^{(H)},y_t)$, and the decoder predicts a diagonal Gaussian distribution over $y_t$ from $(x_t,h_t^{(H)},z)$.
 Training minimizes
 \begin{equation}
-    \mathcal{L} =
-    -\log p_{\theta}(y_t \mid x_t,h_t^{(H)},z)
+    \mathcal{L} = 
+    -\log p_{\theta}(y_t \mid x_t,h_t^{(H)},z)\\
     + \beta D_{\mathrm{KL}}\left(q_{\phi}(z \mid x_t,h_t^{(H)},y_t) \parallel p(z)\right),
     \label{eq:cvae_loss}
 \end{equation}
@@ -278,7 +280,6 @@ The primary model-selection claim is based on MSE and $R^2$; C-index is analyzed
 \centering
 \caption{Multiturn CVAE validation sweep over embedding condition and history window. MSE is computed in standardized target space with 95\% bootstrap confidence intervals. The bold row is best by MSE and $R^2$.}
 \label{tab:multiturn_sweep}
-\resizebox{\textwidth}{!}{%
 \begin{tabular}{llccc}
 \toprule
 Embedding & $H$ & MSE (95\% CI) & $R^2$ & C-index \\
@@ -303,8 +304,7 @@ Dual embed & 1 & 0.05379 [0.05204, 0.05556] & 0.95099 & 0.93954 \\
 Dual embed & 5 & 0.01383 [0.01316, 0.01452] & 0.98740 & 0.95835 \\
 Dual embed & 7 & 0.04921 [0.04727, 0.05124] & 0.95516 & 0.93812 \\
 \bottomrule
-\end{tabular}%
-}
+\end{tabular}
 \end{table*}
 
 Table~\ref{tab:multiturn_sweep} shows that the best variant by MSE and $R^2$ is dual embedding with a three-turn history window.
