@@ -34,6 +34,7 @@ Given current prompt-side acoustic, temporal, affective, speaker-profile, conver
 An S2S output can then be scored by extracting the same response metrics and comparing them against the learned conditional distribution for the corresponding prompt.
 We report a multiturn conditional variational autoencoder (CVAE) sweep over history windows of one, three, five, and seven previous turns, comparing tabular-only conditioning, Trillsson embeddings, Whisper embeddings, and dual embedding fusion.
 The best validation result is obtained by dual embedding fusion with a three-turn history window, which achieves the lowest scaled mean squared error (MSE) and highest $R^2$ among the evaluated variants.
+We also define a prompt-response human evaluation protocol to validate whether automatic naturalness scores align with listener judgments of response naturalness, conversational fit, timing, prosody, and signal quality.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -66,6 +67,7 @@ The model conditions only on the current prompt and available interaction histor
 The S2S response itself is not used as conditioning information; it is the object being scored.
 
 This paper contributes a distributional formulation for S2S naturalness evaluation, a paired prompt-response metric pipeline over natural conversational speech, and a multiturn CVAE framework that compares tabular-only, Trillsson, VoxProfile/Whisper, and dual-embedding conditioning.
+We further specify a prompt-conditioned human evaluation protocol that compares natural human-human responses, deliberately unnatural EmotiVoice responses, and neutral human-S2S agent responses under the same listener-rating interface.
 Across a 16-run validation sweep, dual embedding with $H=3$ produces the best MSE and $R^2$, reducing MSE by 3.90\% relative to the strongest tabular-only multiturn baseline.
 
 \section{Related Work}
@@ -265,6 +267,7 @@ The scalar score supports system comparison, while the per-feature diagnostics s
 This is important for S2S systems because unnaturalness is often localized: a response may have appropriate content and affect but fail through timing, pausing, or prosodic range.
 
 \section{Experimental Protocol}
+\subsection{Automatic Model Validation}
 We evaluate MultiTurnCVAE variants across four history windows, $H \in \{1,3,5,7\}$, and four embedding conditions: tabular-only, Trillsson, VoxProfile/Whisper, and dual embedding.
 Rows are grouped by interaction identifier and ordered by turn index to construct history sequences.
 After status filtering and target exclusions, the sweep uses 39,127 training examples and 5,349 validation examples.
@@ -274,6 +277,16 @@ We report scaled validation MSE, validation $R^2$, and C-index.
 MSE and $R^2$ measure prediction accuracy in standardized target space.
 C-index measures rank agreement and is included because a diagnostic evaluator may also be useful when it orders more natural responses above less natural ones.
 The primary model-selection claim is based on MSE and $R^2$; C-index is analyzed separately because it does not follow the same ordering.
+
+\subsection{Prompt-Response Human Evaluation}
+We plan a listener study to test whether SPEAR scores track perceived contextual naturalness.
+Each item presents a prompt audio clip followed by a candidate response, and raters score the response on 5-point MOS/ACR scales for overall naturalness, conversational fit to the prompt, timing and turn-taking, prosody, and signal quality.
+The study will include 40 items from each of three conditions: natural human-human Seamless Interaction responses, deliberately unnatural EmotiVoice responses, and pooled human-to-S2S-agent responses.
+Each item will receive at least four independent ratings.
+
+The primary analysis will compare mean MOS with 95\% confidence intervals across conditions and correlate the automatic SPEAR score or NLL with the human ratings.
+We will also test whether per-metric residuals explain listener comments about timing, pausing, speaking rate, prosody, or affect, and whether the automatic score remains informative after accounting for signal-quality ratings.
+The human-to-S2S-agent condition is treated as exploratory rather than a ground-truth natural or unnatural class.
 
 \section{Results}
 \begin{table*}[t]
@@ -324,11 +337,33 @@ C-index does not follow the same ordering as MSE and $R^2$.
 The highest C-index is obtained by the tabular-only $H=1$ model, with C-index 0.95982.
 Therefore, the dual-embedding $H=3$ model should be understood as the best predictive model by MSE and $R^2$, while tabular-only short-history conditioning gives the strongest rank-ordering result under C-index.
 
+
+\subsection{Human Evaluation Results}
+The human evaluation has not yet been run.  Table~\ref{tab:human_eval_placeholder} defines the planned reporting format for the prompt-response listener study.
+
+\begin{table*}[t]
+\centering
+\caption{Planned human evaluation summary. Values will be reported as mean MOS with 95\% confidence intervals after annotation is complete.}
+\label{tab:human_eval_placeholder}
+\begin{tabular}{lccccc}
+\toprule
+Condition & Overall & Prompt fit & Timing & Prosody & Signal quality \\
+\midrule
+Natural human-human & -- & -- & -- & -- & -- \\
+Neutral S2S-agent & -- & -- & -- & -- & -- \\
+Unnatural EmotiVoice & -- & -- & -- & -- & -- \\
+\bottomrule
+\end{tabular}
+\end{table*}
+
+After ratings are collected, we will report condition-level MOS differences and correlations between human ratings and SPEAR scores.  The expected evidence pattern is that natural human-human responses receive the highest contextual naturalness ratings, EmotiVoice responses receive lower ratings, and S2S-agent responses occupy an exploratory middle region whose location depends on the system outputs.
+
 \section{Conclusion}
 This work develops a speech-native, prompt-conditioned framework for evaluating whether S2S responses fall inside natural conversational distributions.
 We construct a paired prompt-response metric table from natural dyadic interactions, augment it with Vox-Profile-derived annotations and speech embeddings, and model response-side naturalness metrics with a multiturn CVAE.
 The validation sweep shows that history length and embedding choice interact strongly: dual Trillsson plus VoxProfile/Whisper conditioning is beneficial at a three-turn window and is the only evaluated embedding setting that improves MSE over the strongest tabular-only model.
 These results support multiturn, distributional evaluation as a practical route toward interpretable S2S naturalness scoring, while also showing that speech embeddings must be fused with an appropriate conversational context window to be useful.
+The planned human evaluation will test whether these automatic scores align with listener judgments of contextual response naturalness and will provide the main subjective validation for future revisions.
 
 \bibliographystyle{IEEEtran}
 \bibliography{newbib}

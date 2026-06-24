@@ -1,0 +1,19 @@
+# Dedicated environment for pair-level Trillsson embedding extraction.
+# Install with:
+#   python -m pip install -r requirements_trillsson.txt
+
+pip>=24.0
+setuptools==69.5.1
+wheel>=0.43.0
+
+numpy==1.24.4
+scipy==1.10.1
+soundfile==0.12.1
+tqdm==4.67.1
+
+# tensorflow_hub imports pkg_resources from setuptools.
+tensorflow-hub==0.16.1
+
+# Use this on Linux GPU nodes so pip installs TensorFlow CUDA runtime wheels.
+# If your cluster requires module-provided CUDA instead, replace this with tensorflow==2.15.1.
+tensorflow[and-cuda]==2.15.1
