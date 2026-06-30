@@ -60,9 +60,9 @@ def short_hash(s: str, n: int = 12) -> str:
     return hashlib.sha1(s.encode("utf-8")).hexdigest()[:n]
 
 
-def safe_pair_id_filename(pair_id: str, role: str) -> str:
+def safe_pair_id_filename(pair_id: str, role: str, merge_key: str) -> str:
     safe = pair_id.replace("|", "__").replace("/", "_").replace("\\", "_")
-    return f"{safe}__{role}"
+    return f"{safe}__{short_hash(merge_key)}__{role}"
 
 
 def load_audio(path: Path) -> Tuple[np.ndarray, int]:
@@ -71,6 +71,35 @@ def load_audio(path: Path) -> Tuple[np.ndarray, int]:
         y = f.read(dtype="float32", always_2d=True)
     y = y.mean(axis=1).astype(np.float32)
     return y, sr
+
+
+def empty_embedding_info(status: str) -> Dict[str, str]:
+    return {
+        "vec_path": "",
+        "vec_shape": "",
+        "seq_path": "",
+        "seq_shape": "",
+        "status": status,
+    }
+
+
+def prepare_segment_audio(path: Path, start_s: float, end_s: float) -> Tuple[Optional[np.ndarray], str]:
+    try:
+        y, sr = load_audio(path)
+        seg = slice_audio(y, sr, start_s, end_s)
+        seg = resample_to_16k(seg, sr)
+    except AssertionError as exc:
+        if "Empty segment" in str(exc):
+            return None, "EMPTY_AUDIO"
+        return None, "AUDIO_SEGMENT_INVALID"
+    except (RuntimeError, OSError, ValueError) as exc:
+        if "Failed to decode audio" in str(exc):
+            return None, "AUDIO_DECODE_FAILED"
+        return None, "AUDIO_LOAD_FAILED"
+
+    if seg.size == 0:
+        return None, "EMPTY_AUDIO"
+    return seg, "OK"
 
 
 def slice_audio(y: np.ndarray, sr: int, start_s: float, end_s: float) -> np.ndarray:
@@ -116,6 +145,7 @@ def ensure_whisper_expected_mel_len(model: torch.nn.Module, input_features: torc
 @dataclass
 class SegmentMeta:
     pair_id: str
+    merge_key: str
     role: str
     dyad_id: str
     src_wav: str
@@ -123,8 +153,8 @@ class SegmentMeta:
     end_s: float
 
 
-def build_embedding_paths(out_dir: Path, dyad_id: str, pair_id: str, role: str, save_full_seq: bool):
-    stem = safe_pair_id_filename(pair_id, role)
+def build_embedding_paths(out_dir: Path, dyad_id: str, pair_id: str, merge_key: str, role: str, save_full_seq: bool):
+    stem = safe_pair_id_filename(pair_id, role, merge_key)
     vec_path = out_dir / "embeds_vec" / role / dyad_id / f"{stem}.npy"
     seq_path = out_dir / "embeds_seq" / role / dyad_id / f"{stem}.npy" if save_full_seq else None
     vec_path.parent.mkdir(parents=True, exist_ok=True)
@@ -223,10 +253,12 @@ def output_fieldnames() -> List[str]:
         "prompt_emb_vec_shape",
         "prompt_emb_seq_path",
         "prompt_emb_seq_shape",
+        "status_prompt_whisper",
         "response_emb_vec_path",
         "response_emb_vec_shape",
         "response_emb_seq_path",
         "response_emb_seq_shape",
+        "status_response_whisper",
         "embedding_model_name",
         "whisper_hidden_state_index",
         "embedding_pool",
@@ -242,10 +274,12 @@ def make_output_row(row: Dict[str, str], prompt_info: Dict[str, str], response_i
             "prompt_emb_vec_shape": prompt_info["vec_shape"],
             "prompt_emb_seq_path": prompt_info["seq_path"],
             "prompt_emb_seq_shape": prompt_info["seq_shape"],
+            "status_prompt_whisper": prompt_info["status"],
             "response_emb_vec_path": response_info["vec_path"],
             "response_emb_vec_shape": response_info["vec_shape"],
             "response_emb_seq_path": response_info["seq_path"],
             "response_emb_seq_shape": response_info["seq_shape"],
+            "status_response_whisper": response_info["status"],
             "embedding_model_name": args.model_name,
             "whisper_hidden_state_index": args.hidden_state_index,
             "embedding_pool": args.pool,
@@ -278,6 +312,7 @@ def flush_batch(
             out_dir=args.out_dir,
             dyad_id=meta.dyad_id,
             pair_id=meta.pair_id,
+            merge_key=meta.merge_key,
             role=meta.role,
             save_full_seq=args.save_full_seq,
         )
@@ -286,11 +321,12 @@ def flush_batch(
         if seq_path is not None:
             write_npy_if_needed(seq_path, full_seq[i])
 
-        saved[(meta.pair_id, meta.role)] = {
+        saved[(meta.merge_key, meta.role)] = {
             "vec_path": str(vec_path),
             "vec_shape": str(tuple(pooled[i].shape)),
             "seq_path": str(seq_path) if seq_path is not None else "",
             "seq_shape": str(tuple(full_seq[i].shape)) if seq_path is not None else "",
+            "status": "OK",
         }
 
     return saved
@@ -343,19 +379,20 @@ def process_table(
             response_start = float(row["response_start_s"])
             response_end = float(row["response_end_s"])
 
-            y_p, sr_p = load_audio(prompt_wav)
-            y_r, sr_r = load_audio(response_wav)
+            seg_p, prompt_status = prepare_segment_audio(prompt_wav, prompt_start, prompt_end)
+            seg_r, response_status = prepare_segment_audio(response_wav, response_start, response_end)
 
-            seg_p = slice_audio(y_p, sr_p, prompt_start, prompt_end)
-            seg_r = slice_audio(y_r, sr_r, response_start, response_end)
-
-            seg_p = resample_to_16k(seg_p, sr_p)
-            seg_r = resample_to_16k(seg_r, sr_r)
+            if seg_p is None or seg_r is None:
+                prompt_info = empty_embedding_info(prompt_status if seg_p is None else "SKIPPED_PAIR_FAILURE")
+                response_info = empty_embedding_info(response_status if seg_r is None else "SKIPPED_PAIR_FAILURE")
+                writer.writerow(make_output_row(row, prompt_info, response_info, args))
+                continue
 
             batch_audio.append(seg_p)
             batch_meta.append(
                 SegmentMeta(
                     pair_id=pair_id,
+                    merge_key=row["merge_key"],
                     role="prompt",
                     dyad_id=dyad_id,
                     src_wav=str(prompt_wav),
@@ -368,6 +405,7 @@ def process_table(
             batch_meta.append(
                 SegmentMeta(
                     pair_id=pair_id,
+                    merge_key=row["merge_key"],
                     role="response",
                     dyad_id=dyad_id,
                     src_wav=str(response_wav),
@@ -382,8 +420,8 @@ def process_table(
                 saved = flush_batch(model, device, batch_audio, batch_meta, args)
 
                 for prow in pending_rows:
-                    prompt_info = saved[(prow["pair_id"], "prompt")]
-                    response_info = saved[(prow["pair_id"], "response")]
+                    prompt_info = saved[(prow["merge_key"], "prompt")]
+                    response_info = saved[(prow["merge_key"], "response")]
                     writer.writerow(make_output_row(prow, prompt_info, response_info, args))
 
                 batch_audio.clear()
@@ -393,8 +431,8 @@ def process_table(
         if batch_audio:
             saved = flush_batch(model, device, batch_audio, batch_meta, args)
             for prow in pending_rows:
-                prompt_info = saved[(prow["pair_id"], "prompt")]
-                response_info = saved[(prow["pair_id"], "response")]
+                prompt_info = saved[(prow["merge_key"], "prompt")]
+                response_info = saved[(prow["merge_key"], "response")]
                 writer.writerow(make_output_row(prow, prompt_info, response_info, args))
 
 

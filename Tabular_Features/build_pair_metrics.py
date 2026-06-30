@@ -312,6 +312,8 @@ def extract_vad_segments(json_data):
         assert s is not None and e is not None, f"Invalid VAD segment: {seg}"
         s = float(s)
         e = float(e)
+        if e == s:
+            continue
         assert e > s, f"Invalid VAD segment with end<=start: {seg}"
         out.append((s, e))
     out.sort(key=lambda x: x[0])
@@ -513,9 +515,15 @@ def build_pair_rows_for_dyad(
     interaction_id = interaction1
 
     rel_key = (vendor1, session1)
-    assert rel_key in relationships_map, f"Missing relationship metadata for {rel_key}"
-    relationship = relationships_map[rel_key]["relationship"]
-    relationship_detail = relationships_map[rel_key]["relationship_detail"]
+    rel_info = relationships_map.get(rel_key)
+    if rel_info is None:
+        relationship = "UNKNOWN"
+        relationship_detail = "UNKNOWN"
+        status_relationship = "MISSING_RELATIONSHIP_METADATA"
+    else:
+        relationship = rel_info["relationship"]
+        relationship_detail = rel_info["relationship_detail"]
+        status_relationship = "OK"
 
     j1 = extract_json(json1)
     j2 = extract_json(json2)
@@ -628,6 +636,7 @@ def build_pair_rows_for_dyad(
 
                 "relationship": relationship,
                 "relationship_detail": relationship_detail,
+                "status_relationship": status_relationship,
 
                 "prompt_f0_mean": prompt_f0["f0_mean"],
                 "prompt_f0_sd": prompt_f0["f0_sd"],
@@ -694,7 +703,7 @@ def main():
         "latency_s", "overlap_s",
         "prompt_transcript", "response_transcript",
         "prompt_word_count", "response_word_count",
-        "relationship", "relationship_detail",
+        "relationship", "relationship_detail", "status_relationship",
         "prompt_f0_mean", "prompt_f0_sd", "prompt_f0_range", "prompt_voiced_ratio",
         "response_f0_mean", "response_f0_sd", "response_f0_range", "response_voiced_ratio",
         "prompt_speech_rate_local", "prompt_articulation_rate_local",

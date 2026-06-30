@@ -131,6 +131,7 @@ def main():
         "response_word_count",
         "relationship",
         "relationship_detail",
+        "status_relationship",
         "status_pair",
         "source_dataset_split",
         "split",

@@ -12,13 +12,16 @@
 #SBATCH --mail-user="ahallur1@jh.edu"
 #SBATCH --mail-type=ALL
 
-module purge
-module load conda
-conda deactivate
-conda activate /home/ahallur1/miniconda3/envs/vox
+set -euo pipefail
+
+source /home/ahallur1/miniconda3/etc/profile.d/conda.sh
+conda activate vox
 
 cd /home/ahallur1/spear/SPEAR-Modeling_Naturalness/Whisper_Embeddings
 mkdir -p ./tmp/pair_whisper10/train/shards ./tmp/pair_whisper10/test/shards ./logs
+
+which python
+python --version
 
 python extract_pair_whisper10_embeddings.py \
   --input_train_csv /home/ahallur1/spear/SPEAR-Modeling_Naturalness/Tabular_Features/tmp/pair_final_dataset_train.csv \

@@ -12,13 +12,18 @@
 #SBATCH --mail-user="ahallur1@jh.edu"
 #SBATCH --mail-type=ALL
 
-module purge
-module load conda
-conda deactivate
-conda activate /home/ahallur1/miniconda3/envs/trillsson
+set -euo pipefail
+
+source /home/ahallur1/miniconda3/etc/profile.d/conda.sh
+conda activate trillsson
+export PYTHONNOUSERSITE=1
 
 cd /home/ahallur1/spear/SPEAR-Modeling_Naturalness/Trillsson_Embeddings
 mkdir -p ./tmp/pair_trillsson/train/shards ./tmp/pair_trillsson/test/shards ./logs
+
+which python
+python --version
+python -c "import absl, grpc, tensorflow, tensorflow_hub, numpy, scipy; print('trillsson dependency preflight ok')"
 
 python extract_pair_trillsson_embeddings.py \
   --input_train_csv /home/ahallur1/spear/SPEAR-Modeling_Naturalness/Tabular_Features/tmp/pair_final_dataset_train.csv \

@@ -8,8 +8,11 @@ wheel>=0.43.0
 
 numpy==1.24.4
 scipy==1.10.1
-soundfile==0.12.1
 tqdm==4.67.1
+
+# TensorFlow runtime dependencies that must live inside the conda env.
+absl-py==2.4.0
+grpcio==1.80.0
 
 # tensorflow_hub imports pkg_resources from setuptools.
 tensorflow-hub==0.16.1

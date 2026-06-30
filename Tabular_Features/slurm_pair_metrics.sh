@@ -9,13 +9,16 @@
 #SBATCH --mail-user="ahallur1@jh.edu"
 #SBATCH --mail-type=ALL
 
-module purge
-module load conda
-conda deactivate
+set -euo pipefail
+
+source /home/ahallur1/miniconda3/etc/profile.d/conda.sh
 conda activate /home/ahallur1/.conda/envs/py310
 
 cd /home/ahallur1/spear/SPEAR-Modeling_Naturalness/Tabular_Features
 mkdir -p ./tmp/metrics_shards/train ./tmp/metrics_shards/test ./logs
+
+which python
+python --version
 
 python build_pair_metrics.py \
   --dyad_lookup_csv /export/fs06/corpora8/seamless_interaction/datasets/assets/dyad_lookup.csv \

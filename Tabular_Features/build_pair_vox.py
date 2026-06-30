@@ -342,6 +342,8 @@ def extract_vad_segments(json_data):
         assert s is not None and e is not None, f"Invalid VAD segment: {seg}"
         s = float(s)
         e = float(e)
+        if e == s:
+            continue
         assert e > s, f"Invalid VAD segment with end<=start: {seg}"
         out.append((s, e))
     out.sort(key=lambda x: x[0])
@@ -431,6 +433,8 @@ def load_audio_cache(audio_cache, wav_path):
 
 def slice_audio(audio_cache, wav_path, start_s, end_s):
     wav, sr = load_audio_cache(audio_cache, wav_path)
+    if wav.numel() == 0:
+        return wav.clone(), sr
     start = int(round(start_s * sr))
     end = int(round(end_s * sr))
     assert end > start, f"Invalid slice bounds for {wav_path}: {start_s}, {end_s}"
@@ -439,6 +443,8 @@ def slice_audio(audio_cache, wav_path, start_s, end_s):
 
 
 def prepare_audio_for_vox(wav, sr):
+    if wav.numel() == 0:
+        return wav.float()
     if sr != TARGET_SR:
         wav = torchaudio.functional.resample(wav.unsqueeze(0), sr, TARGET_SR).squeeze(0)
     rms = torch.sqrt(torch.mean(wav ** 2) + 1e-8)
@@ -469,8 +475,31 @@ def speech_only_chunks_from_waveform(wav_16k):
 
 
 def aggregate_age_gender_for_speaker(audio_cache, wav_path):
-    wav, sr = load_audio_cache(audio_cache, wav_path)
+    try:
+        wav, sr = load_audio_cache(audio_cache, wav_path)
+    except RuntimeError as exc:
+        if "Failed to decode audio" not in str(exc):
+            raise
+        return {
+            "age": np.nan,
+            "gender": "",
+            "gender_confidence": np.nan,
+            "num_chunks": 0,
+            "speech_sec": 0.0,
+            "status": "AUDIO_DECODE_FAILED",
+        }
+
     wav_16k = prepare_audio_for_vox(wav, sr)
+    if wav_16k.numel() == 0:
+        return {
+            "age": np.nan,
+            "gender": "",
+            "gender_confidence": np.nan,
+            "num_chunks": 0,
+            "speech_sec": 0.0,
+            "status": "EMPTY_AUDIO",
+        }
+
     chunks, speech_sec = speech_only_chunks_from_waveform(wav_16k)
 
     if not chunks:
@@ -509,8 +538,31 @@ def aggregate_age_gender_for_speaker(audio_cache, wav_path):
 
 
 def aggregate_avd_for_segment(audio_cache, wav_path, start_s, end_s):
-    wav, sr = slice_audio(audio_cache, wav_path, start_s, end_s)
+    try:
+        wav, sr = slice_audio(audio_cache, wav_path, start_s, end_s)
+    except RuntimeError as exc:
+        if "Failed to decode audio" not in str(exc):
+            raise
+        return {
+            "arousal": np.nan,
+            "valence": np.nan,
+            "dominance": np.nan,
+            "num_chunks": 0,
+            "speech_sec": 0.0,
+            "status": "AUDIO_DECODE_FAILED",
+        }
+
     wav_16k = prepare_audio_for_vox(wav, sr)
+    if wav_16k.numel() == 0:
+        return {
+            "arousal": np.nan,
+            "valence": np.nan,
+            "dominance": np.nan,
+            "num_chunks": 0,
+            "speech_sec": 0.0,
+            "status": "EMPTY_AUDIO",
+        }
+
     chunks, speech_sec = speech_only_chunks_from_waveform(wav_16k)
 
     if not chunks:
@@ -578,9 +630,15 @@ def build_pair_rows_for_dyad(
     interaction_id = interaction1
 
     rel_key = (vendor1, session1)
-    assert rel_key in relationships_map, f"Missing relationship metadata for {rel_key}"
-    relationship = relationships_map[rel_key]["relationship"]
-    relationship_detail = relationships_map[rel_key]["relationship_detail"]
+    rel_info = relationships_map.get(rel_key)
+    if rel_info is None:
+        relationship = "UNKNOWN"
+        relationship_detail = "UNKNOWN"
+        status_relationship = "MISSING_RELATIONSHIP_METADATA"
+    else:
+        relationship = rel_info["relationship"]
+        relationship_detail = rel_info["relationship_detail"]
+        status_relationship = "OK"
 
     j1 = extract_json(json1)
     j2 = extract_json(json2)
@@ -698,6 +756,7 @@ def build_pair_rows_for_dyad(
 
                 "relationship": relationship,
                 "relationship_detail": relationship_detail,
+                "status_relationship": status_relationship,
 
                 "prompt_arousal": prompt_avd["arousal"],
                 "prompt_valence": prompt_avd["valence"],
@@ -763,7 +822,7 @@ def main():
         "latency_s", "overlap_s",
         "prompt_transcript", "response_transcript",
         "prompt_word_count", "response_word_count",
-        "relationship", "relationship_detail",
+        "relationship", "relationship_detail", "status_relationship",
         "prompt_arousal", "prompt_valence", "prompt_dominance",
         "prompt_age", "prompt_gender", "prompt_gender_confidence",
         "prompt_vox_num_chunks", "prompt_vox_support_speech_sec",
