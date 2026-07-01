@@ -16,3 +16,7 @@ EmotiVoice_Unnatural/tmp/pair_whisper10/
 EmotiVoice_Unnatural/**/*.npy
 EmotiVoice_Unnatural/**/*.csv
 **/**/*.csv
+LLM_Outputs/logs/
+LLM_Outputs/tmp/
+LLM_Outputs/**/*.npy
+LLM_Outputs/**/*.csv
