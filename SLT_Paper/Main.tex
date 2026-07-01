@@ -55,7 +55,7 @@ Instead of asking whether an output falls inside a broad matched percentile rang
 
 We use the term \emph{conditioning turn} for the preceding speaker turn and \emph{response turn} for the next cross-speaker turn.
 Together they form an \emph{adjacent-turn pair}.
-The conditioning turn is not an LLM instruction or text prompt; it is the actual speech segment that came immediately before the response in a dyadic conversation.
+The conditioning turn is the actual speech segment that came immediately before the response in a dyadic conversation.
 For each pair, we extract interpretable speech measurements from both sides, optionally add learned speech embeddings from the conditioning turn, and model the response-side measurements.
 The core object is
 \begin{equation}
