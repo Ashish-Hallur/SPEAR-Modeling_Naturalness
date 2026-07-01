@@ -14,7 +14,7 @@
 
 \begin{document}
 
-\title{Conversation-Context Conditioned Naturalness Distributions for Speech-to-Speech Evaluation\\
+\title{Conversation-Conditioned Distributions for Naturalness Analysis in Speech-to-Speech Model Evaluation\\
 \thanks{Full funding acknowledgments will be added after acceptance.}
 }
 
@@ -30,11 +30,11 @@
 \begin{abstract}
 Speech-to-speech (S2S) systems can produce fluent spoken responses, but fluency alone does not guarantee conversational naturalness.
 A response may be intelligible and semantically appropriate while sounding atypical in timing, rhythm, pitch variation, or affect for the conversation that preceded it.
-We present a conversation-context conditioned evaluator that learns expected distributions over response-side speech measurements from natural dyadic interaction.
-The method combines interpretable speech and context features, optional learned speech embeddings, recent conversational history, and a history-aware CVAE over naturalness-relevant response metrics.
-We evaluate the framework on held-out natural conversations and on an external EmotiVoice-derived unnaturalness probe, using both automatic likelihood-based separation and human perceptual validation.
-The experiments show that directly measured conversation features are strongest for predicting natural response measurements, while learned speech embeddings provide complementary signal for separating natural responses from synthetic unnatural probes.
-These findings support a two-axis view of S2S naturalness evaluation: accurate modeling of natural conversational behavior and sensitivity to perceptually unnatural speech.
+We present a conversation-conditioned modeling framework for distributions over speech-native response measurements in natural dyadic interaction.
+The method combines interpretable speech and context features, optional learned speech embeddings, recent conversational history, and a history-aware CVAE over response behavior measurements.
+We analyze held-out natural conversations and an external EmotiVoice-derived synthetic probe, using posterior conditional fit scores, likelihood-gap summaries, and listener ratings of the probe conditions.
+The experiments show that directly measured conversation features are strongest for fitting held-out natural response measurements, while learned speech embeddings provide complementary signal for separating natural responses from the synthetic probe.
+These findings support a two-axis analysis of S2S naturalness: modeling measurable natural conversational behavior and testing sensitivity to perceptually unnatural speech conditions.
 \end{abstract}
 
 \begin{IEEEkeywords}
@@ -45,7 +45,7 @@ speech-to-speech evaluation, conversational naturalness, prosody, rhythm, condit
 Spoken conversation is organized through more than lexical content.
 Speakers coordinate turns using timing, prosody, pause structure, and affective stance, and these cues help make an exchange sound smooth rather than merely intelligible \cite{riest_anticipation_2015, levinson_turn-taking_2016, koiso_analysis_1998}.
 S2S systems are increasingly able to generate fluent speech, but generated turns can still violate the behavioral ranges that are typical for a given conversational context.
-For example, a response may begin after an unusual delay, compress pitch variation in an expressive exchange, speak at an implausible rate, or use affective cues that do not match the preceding turn.
+For example, a response may compress pitch variation in an expressive exchange, or speak at an implausible rate, or even use affective cues that do not match the preceding turn.
 Text-based metrics, task success, and global listener ratings remain useful, but they often do not identify which speech-native dimensions make an output sound unnatural \cite{omahony_combining_2022}.
 
 Prior work on reference-based prosody and rhythm evaluation for spoken dialogue systems introduced a complementary view: extract prosodic and rhythmic measurements from an S2S output, compare them with matched human conversational regimes, and report interpretable deviations rather than a single opaque score \cite{DISTRIB}.
@@ -62,14 +62,14 @@ The core object is
     p_{\theta}(y_t \mid x_t, h_t^{(H)}),
     \label{eq:conditional_distribution}
 \end{equation}
-where $x_t$ describes the current conditioning turn, $h_t^{(H)}$ contains up to $H$ preceding turns from the same interaction, and $y_t$ is a vector of response-side naturalness measurements.
+where $x_t$ describes the current conditioning turn and observed turn-timing covariates, $h_t^{(H)}$ contains up to $H$ preceding turns from the same interaction, and $y_t$ is a vector of response-side speech measurements.
 
 This paper makes five contributions.
 First, we convert Seamless Interaction conversations into adjacent-turn examples for distributional S2S evaluation.
-Second, we define a 12-metric response target space covering duration, lexical length, pitch variation, voicing, rate, pausing, and dimensional affect.
+Second, we define a 12-measure response behavior space covering duration, lexical length, pitch variation, voicing, rate, pausing, and dimensional affect.
 Third, we compare interpretable-only and embedding-augmented history-aware CVAE models over history windows $H\in\{1,3,5,7\}$.
-Fourth, we evaluate each model on two axes: prediction of held-out natural responses and likelihood separation between natural responses and a TRACE-derived EmotiVoice probe \cite{TRACE}.
-Fifth, we report listener ratings showing that the TRACE-derived EmotiVoice condition is perceptually less natural than natural/reference speech.
+Fourth, we evaluate each model on two axes: held-out natural-response fit and likelihood separation between natural responses and a TRACE-derived EmotiVoice probe \cite{TRACE}.
+Fifth, we report listener ratings showing that the TRACE-derived EmotiVoice probe is perceptually less natural than natural/reference speech.
 
 \section{Related Work}
 \subsection{Speech-Native S2S Evaluation}
@@ -83,7 +83,7 @@ Our goal is not to replace human evaluation, but to provide a scalable analysis 
 Conversational speech differs from read speech in prosodic and temporal structure \cite{howell1991comparison, hazan2010does}.
 Prosodic variation, especially fundamental-frequency ($F_0$) range and variability, is associated with emotion, communicative intent, prominence, and discourse structure \cite{banziger_role_2005, pell_emotional_2011, xu_speech_2005, sluijter_acoustic_1996, sluijter_spectral_1996}.
 Temporal organization also matters: speaking rate, articulation rate, and pausing shape perceived tempo and turn-taking behavior \cite{tauroza_speech_1990, goldman1958speech, campione2002large, pellegrino_automatic_2004, jiao_estimating_2015, morgan_combining_1998}.
-Because these behaviors vary with interactional state, a naturalness evaluator should compare a response with expectations for its local conversation, not with a single global baseline \cite{fusaroli_dialog_2014, wynn_conversational_2024}.
+Because these behaviors vary with interactional state, S2S analysis should compare a response with expectations for its local conversation, not with a single global baseline \cite{fusaroli_dialog_2014, wynn_conversational_2024}.
 
 
 \section{Data and Measurements}
@@ -102,11 +102,11 @@ The table is included because several terms have overloaded meanings outside thi
 Term & Meaning in this paper \\
 \midrule
 Adjacent-turn pair & Two neighboring cross-speaker turns: a conditioning turn followed by the response turn being modeled. \\
-Conditioning turn & The preceding speech segment used as context for evaluation; not an LLM instruction. \\
+Conditioning turn & The preceding speech segment used as context for analysis; not an LLM instruction. \\
 History window $H$ & The number of earlier turns from the same interaction made available to the model. \\
 Interpretable features & Measured speech, timing, affect, and interaction-context variables with direct interpretability. \\
 Embedding-augmented condition & A model that adds Trillsson, VoxProfile/Whisper, or both embedding streams to the interpretable features. \\
-TRACE-derived probe & EmotiVoice-based synthetic or voice-converted dyadic clips from a temporal relationship-aware conversational entrainment study, reused here as an external unnaturalness stress test. \\
+TRACE-derived probe & EmotiVoice-based synthetic or voice-converted dyadic clips from a temporal relationship-aware conversational entrainment study, reused here as an external synthetic probe. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -122,7 +122,7 @@ The refined experiments use the source dataset partitions directly: Seamless tra
 After filtering and embedding alignment, the reported experiments contain 85,566 natural training examples and 1,146 held-out natural examples.
 
 \subsection{TRACE-Derived EmotiVoice Probe}
-To test whether models trained on natural responses assign lower likelihood to unnatural speech, we use EmotiVoice-derived conditions from TRACE, a temporal relationship-aware conversational entrainment study, as an external probe \cite{TRACE}.
+To test whether models trained on natural responses assign lower fit scores to synthetic speech conditions, we use EmotiVoice-derived conditions from TRACE, a temporal relationship-aware conversational entrainment study, as an external probe \cite{TRACE}.
 That study constructs synthetic and voice-converted dyadic clips that are intended to disrupt natural conversational entrainment.
 Here, we do not treat this material as a general benchmark dataset; we use its aligned EmotiVoice examples as a deliberately unnatural stress test.
 The same adjacent-turn construction and measurement pipeline is applied, producing examples with the same fields as the natural Seamless examples.
@@ -141,7 +141,7 @@ Item & Role & Count or dimension \\
 Seamless natural examples & train/dev & 85,566 \\
 Seamless natural examples & held-out test & 1,146 \\
 TRACE-derived EmotiVoice examples & external probe & 2,645 \\
-Response naturalness targets & modeled metrics & 12 \\
+Speech-native response measurements & reported metrics & 12 \\
 Interpretable feature set & conditioning/history & 58 \\
 Trillsson stream & conditioning-turn embedding & 1,024 \\
 VoxProfile/Whisper stream & conditioning-turn embedding & 1,280 \\
@@ -149,21 +149,23 @@ VoxProfile/Whisper stream & conditioning-turn embedding & 1,280 \\
 \end{tabular}
 \end{table}
 
-\subsection{Response Target Metrics}
-The response space reported in this paper contains 12 naturalness-relevant measurements adapted from reference-based prosody and rhythm evaluation for spoken dialogue systems and extended with dimensional affect estimates \cite{DISTRIB}.
-Table~\ref{tab:target_metrics} defines each target and explains why it is relevant to S2S naturalness.
-We intentionally exclude automatic-analysis outputs that are not response-naturalness targets for S2S agents, including demographic-style estimates and analysis-coverage variables.
+\subsection{Response Measurements}
+The response space reported in this paper contains 12 speech-native measurements adapted from reference-based prosody and rhythm evaluation for spoken dialogue systems and extended with dimensional affect estimates \cite{DISTRIB}.
+Table~\ref{tab:target_metrics} defines each measurement and explains why it is a candidate dimension for S2S naturalness analysis.
+These measurements are not naturalness labels; they are observable response behaviors that can make a generated turn sound more or less plausible in context.
+We intentionally exclude automatic-analysis outputs that are not response behavior measurements for S2S agents, including demographic-style estimates and analysis-coverage variables.
 Those quantities may be useful for quality control or exploratory analysis, but they should not determine whether a synthetic response is considered conversationally natural.
+The broader training run included auxiliary demographic and coverage outputs used by the feature pipeline; all aggregate results, model comparisons, and per-feature claims in this paper are restricted to the 12 measurements in Table~\ref{tab:target_metrics}.
 
 \begin{table*}[t]
 \centering
-\caption{Twelve-target response space used for the reported results. Segment-level means that each value is computed over the retained response segment.}
+\caption{Twelve-measure response space used for the reported results. Segment-level means that each value is computed over the retained response segment.}
 \label{tab:target_metrics}
 \scriptsize
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{p{0.15\textwidth}p{0.20\textwidth}p{0.29\textwidth}p{0.26\textwidth}}
 \toprule
-Group & Target & Definition & Naturalness rationale \\
+Group & Measurement & Definition & Why included \\
 \midrule
 Duration/lexical & Duration & Response segment duration in seconds. & Captures whether the turn is unusually short or long for the context. \\
 Duration/lexical & Word count & Number of transcript words in the response segment. & Measures response length independently of acoustic rate. \\
@@ -188,13 +190,15 @@ The use of words per minute is motivated by its relationship to perceived speech
 Arousal, valence, and dominance are produced by VoxProfile's speech-based affect model after mono conversion, 16 kHz resampling, RMS normalization, and speech-region selection with Silero VAD \cite{Silero_VAD, feng2025vox}.
 
 \subsection{Conditioning Features and History}
-For each current pair, $x_t$ contains measurements from the conditioning turn, relationship and turn-position context, response latency and overlap, and optional conditioning-turn speech embeddings.
-The model never conditions on the current response measurements when scoring that response; those measurements form $y_t$, the object being evaluated.
+For each current pair, $x_t$ contains measurements from the conditioning turn, relationship and turn-position context, observed response-timing covariates (latency and overlap), and optional conditioning-turn speech embeddings.
+The timing covariates define the scoring context for these experiments; because they are conditioned on and heavily filtered, the reported models do not evaluate unusual delays, interruptions, or overlap as response failures.
+The response measurements form $y_t$, the object whose distribution is analyzed.
+In a deployable prior-predictive use, $y_t$ would be scored only after sampling from the prior conditioned on $x_t$ and history; in the current posterior-fit analysis, $y_t$ also enters the inference network used to estimate the latent variable.
 The history vector $h_t^{(H)}$ is a padded sequence of up to $H$ earlier turns from the same interaction, ordered from oldest to newest.
 Each history item contains the earlier turn's interpretable features, optional embeddings, and the earlier response measurements that would already be observable in a multi-turn interaction.
 
 \subsection{Modeling Rationale}
-The model needs to represent a range of plausible response behaviors rather than a single canonical response, because many timing, prosodic, and affective patterns can be natural in the same conversation context.
+The model needs to represent a range of plausible response behaviors rather than a single canonical response, because many prosodic, rate, pausing, and affective patterns can be natural in the same conversation context.
 We therefore use a CVAE to model residual response variability with a latent variable while conditioning on the current turn and recent interaction history \cite{kingma2013vae, sohn2015cvae}.
 We compare interpretable-only and embedding-augmented conditions because the former are easier to interpret, while learned speech embeddings may retain acoustic or paralinguistic information that is not captured by the 12 response metrics.
 The embedding-augmented conditions use Trillsson embeddings for non-semantic speech representation \cite{shor2022trillsson} and a VoxProfile/Whisper stream based on Whisper representations and VoxProfile speech analysis \cite{radford2023whisper, feng2025vox}.
@@ -202,7 +206,7 @@ The embedding-augmented conditions use Trillsson embeddings for non-semantic spe
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.95\textwidth]{figures/pipeline_schematic.pdf}
-\caption{Two-lane study design. Natural Seamless conversations provide the training and held-out natural evaluation examples, while the TRACE-derived EmotiVoice probe passes through the same adjacent-turn and measurement pipeline as an external unnaturalness stress test. The shared feature representation combines interpretable context features, optional conditioning-turn embeddings, 12 response targets, and a history window before the history-aware CVAE is evaluated on prediction and separation axes.}
+\caption{Two-lane study design. Natural Seamless conversations provide the training and held-out natural evaluation examples, while the TRACE-derived EmotiVoice probe passes through the same adjacent-turn and measurement pipeline as an external synthetic stress test. The shared feature representation combines interpretable context features, optional conditioning-turn embeddings, 12 response measurements, and a history window before the history-aware CVAE is analyzed on held-out fit and probe-separation axes.}
 \label{fig:pipeline}
 \end{figure*}
 
@@ -221,6 +225,8 @@ Training minimizes
     \label{eq:cvae_loss}
 \end{equation}
 where $p(z)$ is a standard normal prior and the latent dimension is 16.
+All sweep runs use z-scored numeric inputs and targets, a learned diagonal decoder variance, Adam with learning rate 0.003, weight decay $10^{-5}$, batch size 1024, dropout 0.1, gradient clipping at 1.0, and a maximum of 100 epochs.
+The KL weight $\beta$ is annealed from 0.001 to 0.05, and early stopping uses held-out development fit with patience 20 and minimum improvement $10^{-4}$.
 
 \subsection{Model Conditions}
 We evaluate 16 conditions formed by crossing four history windows, $H\in\{1,3,5,7\}$, with four information settings.
@@ -231,8 +237,9 @@ The dual-embedding setting adds both streams.
 All numeric features and embedding dimensions are scaled using training-set statistics.
 
 \subsection{Evaluation Axes}
-Natural-response prediction is evaluated on the held-out Seamless test set using target-averaged scaled MSE, target-averaged $R^2$, and C-index over the 12 response targets.
-Unnaturalness separation is evaluated by applying the same preprocessing and model checkpoints to the TRACE-derived EmotiVoice examples and computing
+Held-out natural-response fit is evaluated on the Seamless test set using target-averaged scaled MSE, target-averaged $R^2$, and C-index over the 12 response measurements.
+These MSE, $R^2$, C-index, and likelihood values are computed from the same posterior conditional evaluation path and should be read as fit summaries rather than deployable forecasts.
+External-probe separation is evaluated by applying the same preprocessing and model checkpoints to the TRACE-derived EmotiVoice examples and computing
 \begin{equation}
     \Delta_{\mathrm{LL}} =
     \mathrm{LL}_{\mathrm{natural\ test}} -
@@ -240,22 +247,22 @@ Unnaturalness separation is evaluated by applying the same preprocessing and mod
 \end{equation}
 where larger values indicate lower model likelihood for the EmotiVoice probe than for held-out natural responses.
 For the balanced score in Table~\ref{tab:clean_sweep}, we average two normalized ranks: the rank for natural-test MSE and the rank for $\Delta_{\mathrm{LL}}$.
-This score is deliberately simple; it identifies conditions that are not extreme on only one axis.
+This score is a descriptive rank summary, not a principled training objective or universal model-selection criterion; it identifies conditions that are not extreme on only one axis.
 
 The current likelihood values are posterior fit scores, because the CVAE evaluation path uses $q_{\phi}(z \mid x_t,h_t^{(H)},y_t)$.
 They should therefore be interpreted as held-out conditional fit and separation summaries, not as final deployable prior-predictive S2S scores.
-A deployable evaluator should sample from $p(z)$ using only the conditioning turn and history, then compute predictive intervals and residuals for the candidate response.
+A deployed prior-predictive scoring system should sample from $p(z)$ using only the conditioning turn and history, then compute predictive intervals and residuals for the candidate response.
 
 \section{Results}
-\subsection{Twelve-Target Model Sweep}
-Table~\ref{tab:clean_sweep} reports all aggregate results over the 12 naturalness targets in Table~\ref{tab:target_metrics}.
-The best natural-response predictor is the interpretable-only model with five previous turns, with MSE 0.025 and $R^2=0.975$.
-This indicates that direct measurements of the preceding turn and recent interaction history are highly informative for predicting natural response behavior.
-However, the same model has a small natural-vs-EmotiVoice likelihood gap, showing that strong prediction of natural test examples is not the same as strong unnaturalness screening.
+\subsection{Twelve-Measure Model Sweep}
+Table~\ref{tab:clean_sweep} reports aggregate posterior-fit results over the 12 response measurements in Table~\ref{tab:target_metrics}.
+The strongest held-out natural-response fit is the interpretable-only model with five previous turns, with MSE 0.025 and $R^2=0.975$.
+This indicates that direct measurements of the preceding turn and recent interaction history are highly informative for fitting natural response behavior in this filtered setting.
+However, the same model has a small natural-vs-EmotiVoice likelihood gap, showing that strong natural-set fit is not the same as strong external-probe separation.
 
 \begin{table*}[t]
 \centering
-\caption{Twelve-target multiturn model sweep. MSE, $R^2$, and C-index are averaged over the naturalness targets in Table~\ref{tab:target_metrics}. $\Delta$LL is natural-test likelihood minus TRACE-derived EmotiVoice likelihood; higher means stronger separation. Bold marks the best natural predictor, strongest separator, and top balanced tier.}
+\caption{Twelve-measure multiturn model sweep. MSE, $R^2$, C-index, and likelihood values are posterior conditional fit summaries averaged over the response measurements in Table~\ref{tab:target_metrics}; they are not deployable prior-predictive scores. $\Delta$LL is natural-test likelihood minus TRACE-derived EmotiVoice likelihood; higher means stronger external-probe separation. Bal. score is a descriptive rank summary. Bold marks lowest MSE, largest $\Delta$LL, and the descriptive top balanced tier.}
 \label{tab:clean_sweep}
 \scriptsize
 \setlength{\tabcolsep}{2.8pt}
@@ -286,34 +293,33 @@ Dual embedding & 5 & 0.034 & 0.967 & 0.978 & 0.049 & 1.281 & 0.700 \\
 \end{tabular}
 \end{table*}
 
-\subsection{Prediction-Separation Tradeoff}
+\subsection{Fit-Separation Tradeoff}
 The strongest separator is VoxProfile/Whisper with $H=7$, which gives the largest likelihood gap ($\Delta$LL 1.556) but the weakest natural-test MSE among the 16 conditions.
-Conversely, the best natural predictor, interpretable-only $H=5$, gives the smallest MSE but a much smaller likelihood gap.
-The balanced score therefore identifies a top tier rather than a single universal winner: VoxProfile/Whisper $H=3$, Trillsson $H=1$, and dual embedding $H=7$ all receive score 0.800.
-These three conditions occupy different parts of the tradeoff surface, as shown in Fig.~\ref{fig:tradeoff}.
+Conversely, the strongest natural-fit condition, interpretable-only $H=5$, gives the smallest MSE but a much smaller likelihood gap.
+The balanced score is therefore useful only as a descriptive tradeoff summary: VoxProfile/Whisper $H=3$, Trillsson $H=1$, and dual embedding $H=7$ all receive score 0.800, but they occupy different parts of the tradeoff surface in Fig.~\ref{fig:tradeoff}.
 
 \begin{figure*}[t]
 \centering
 \includegraphics[width=0.95\textwidth]{figures/prediction_discrimination_scatter.pdf}
-\caption{Two views of the prediction-separation tradeoff. Panel A plots natural-test MSE against natural-minus-probe likelihood gap for all 16 conditions, labeling only the key models. Panel B compares normalized prediction and separation ranks for the best predictor, strongest separator, and balanced-tier models.}
+\caption{Two views of the posterior-fit and external-probe separation tradeoff. Panel A plots natural-test MSE against natural-minus-probe likelihood gap for all 16 conditions, labeling only the key models. Panel B compares normalized natural-fit and separation ranks for the lowest-MSE condition, strongest separator, and descriptive balanced-tier models.}
 \label{fig:tradeoff}
 \end{figure*}
 
 \subsection{Per-Feature Analysis}
 Table~\ref{tab:per_feature} summarizes which model families are most useful for different target groups.
-Interpretable features dominate prediction of duration, word count, rate, mean pause duration, arousal, and valence.
+Interpretable features dominate natural-set fit for duration, word count, rate, mean pause duration, arousal, and valence.
 Embedding-augmented models are more useful for separation, especially for affect and pitch variation.
 The largest per-feature likelihood gaps occur for arousal under Trillsson $H=1$ and dominance under dual embedding $H=7$, consistent with the intuition that the TRACE-derived EmotiVoice probe is most unnatural in affective and style-related dimensions.
 
 \begin{table*}[t]
 \centering
-\caption{High-signal per-feature findings over the 12-target response space. Prediction winners use natural-test MSE; separation winners use per-feature $\Delta$LL.}
+\caption{High-signal per-feature findings over the 12-measure response space. Fit winners use natural-test MSE; separation winners use per-feature $\Delta$LL.}
 \label{tab:per_feature}
 \scriptsize
 \setlength{\tabcolsep}{3.2pt}
 \begin{tabular}{p{0.16\textwidth}p{0.22\textwidth}p{0.23\textwidth}p{0.31\textwidth}}
 \toprule
-Target group & Strongest prediction & Strongest separation & Interpretation \\
+Target group & Strongest natural-set fit & Strongest separation & Interpretation \\
 \midrule
 Duration and lexical length & Interpretable-only $H=1/7$ & VoxProfile/Whisper $H=5$; Trillsson $H=3$ & Turn length is well captured by measured context, while embeddings add signal for atypical response length. \\
 Pitch and voicing & VoxProfile/Whisper $H=3$; dual embedding $H=3/7$ & VoxProfile/Whisper $H=7$ & Learned speech embeddings are useful for pitch-variation deviations. \\
@@ -323,15 +329,15 @@ Affect & Interpretable-only $H=5$; dual embedding $H=3$ & Trillsson $H=1$; dual 
 \end{tabular}
 \end{table*}
 
-\subsection{Human Perceptual Validation}
-The automatic separation results are strengthened by the listening study reported with TRACE over mixed two-speaker clips \cite{TRACE}.
+\subsection{Human Validation of the External Probe}
+The interpretation of the EmotiVoice material as an external synthetic probe is supported by the listening study reported with TRACE over mixed two-speaker clips \cite{TRACE}.
 The study contains 75 non-foil clips and 200 target ratings from 10 listeners, plus 20 foil ratings used for quality control.
 Foils are excluded from Table~\ref{tab:human_eval}.
 Listeners rated overall naturalness, speaking-style dimensions, emotion flow, and signal quality on 1--5 scales, and ratings are averaged at the clip level before condition summaries are computed.
 
 \begin{table*}[t]
 \centering
-\caption{Human naturalness ratings for the TRACE perceptual validation set. Values are clip-level mean $\pm$ standard deviation on 1--5 scales, with foils excluded. Style avg. is the average of rhythm/timing, emphasis/stress, speed/rate, and pauses/phrasing. Natural/ref. combines Original and Original VC; EmotiVoice all combines EmotiVoice TTS and EmotiVoice TTS VC.}
+\caption{Human ratings for the TRACE external-probe validation set. Values are clip-level mean $\pm$ standard deviation on 1--5 scales, with foils excluded. Style avg. is the average of rhythm/timing, emphasis/stress, speed/rate, and pauses/phrasing. Natural/ref. combines Original and Original VC; EmotiVoice all combines EmotiVoice TTS and EmotiVoice TTS VC.}
 \label{tab:human_eval}
 \scriptsize
 \setlength{\tabcolsep}{5.0pt}
@@ -353,34 +359,37 @@ EmotiVoice all & 35 & $2.73 \pm 0.76$ & $3.06 \pm 0.70$ & $2.72 \pm 0.83$ & $4.0
 Listeners rated natural/reference clips much higher than EmotiVoice clips in overall naturalness, 4.49 vs. 2.73 MOS, with a significant clip-level Mann--Whitney comparison ($p<0.001$).
 The largest perceptual drops are in emotion flow, emphasis/stress, pauses/phrasing, and rhythm/timing.
 Audio quality remains relatively high for EmotiVoice, especially after voice conversion, so the perceptual gap is not explained only by signal artifacts.
-This study validates the EmotiVoice condition as an external unnaturalness probe; it does not yet establish per-item correlation between our likelihood scores and human adjacent-turn judgments.
+This study validates the EmotiVoice condition as an external synthetic probe that listeners perceive as less natural; it does not yet establish per-item correlation between our likelihood scores and human adjacent-turn judgments.
 
 \section{Discussion}
 The results point to two complementary roles for the feature families.
-First, the strongest natural-response predictor is not an embedding-heavy model; it is the interpretable-only $H=5$ condition.
-This is encouraging because it means that directly measurable speech and context variables carry substantial information about natural response behavior.
+First, the strongest natural-response fit condition is not an embedding-heavy model; it is the interpretable-only $H=5$ condition.
+This is encouraging because it means that directly measurable speech and context variables carry substantial information about response behavior in natural adjacent turns.
 Second, the models that best separate TRACE-derived EmotiVoice examples from held-out natural examples do use learned speech embeddings.
-This suggests that embeddings capture acoustic or paralinguistic mismatch that is not fully represented by the 12 interpretable response targets.
+This suggests that embeddings capture acoustic or paralinguistic mismatch that is not fully represented by the 12 interpretable response measurements.
 
-These results support a two-axis view of S2S naturalness evaluation.
-If the goal is to predict the range of natural response measurements, interpretable features with several turns of history are strongest.
-If the goal is to screen for S2S/TTS-style unnaturalness, embedding-augmented models provide stronger separation.
-The balanced top tier should be interpreted as a set of practical choices rather than a universal winner: VoxProfile/Whisper $H=3$ offers the best MSE among the balanced models, Trillsson $H=1$ offers a compact short-history option, and dual embedding $H=7$ offers strong separation at the cost of weaker prediction.
+These posterior-fit results support a two-axis view of S2S naturalness analysis.
+If the goal is to fit the range of natural response measurements in this filtered setting, interpretable features with several turns of history are strongest.
+If the goal is to screen against this external synthetic probe, embedding-augmented models provide stronger separation.
+The balanced top tier should be interpreted as a descriptive set of practical choices rather than a universal winner: VoxProfile/Whisper $H=3$ offers the best MSE among the balanced models, Trillsson $H=1$ offers a compact short-history option, and dual embedding $H=7$ offers strong separation at the cost of weaker natural-set fit.
 
 \section{Limitations}
 Several limitations should be made explicit.
 First, the reported likelihoods are posterior CVAE fit scores, not final prior-predictive S2S scores.
-A deployable evaluator must score candidate responses using only the conditioning turn and history, without conditioning the latent variable on the response being evaluated.
-Second, the TRACE-derived EmotiVoice probe is perceptually validated, but it represents one family of unnatural speech manipulations from a recent preprint, not the full space of S2S failure modes.
+A deployed scoring system must score candidate responses using only the conditioning turn and history, without conditioning the latent variable on the response being evaluated.
+Second, the TRACE-derived EmotiVoice probe is perceptually validated, but it represents one family of synthetic speech manipulations from a recent preprint, not the full space of S2S failure modes; separation may reflect both unnaturalness and source/pipeline mismatch.
 Third, the listener study validates the external probe at the clip level; it does not yet establish per-item correlation between model scores and human judgments of adjacent-turn response naturalness.
-Finally, the target space is intentionally speech-native and does not evaluate semantic appropriateness, task success, factuality, or user satisfaction.
+Fourth, the filtering procedure focuses on substantive adjacent responses and excludes many backchannels, interruptions, long delays, and high-overlap turns.
+Relatedly, response latency and overlap are treated as observed timing covariates in the current models, so these experiments do not evaluate unusual turn timing as a response failure.
+Fifth, we use the source Seamless partitions directly and do not claim additional speaker- or session-disjoint resplitting beyond those partitions.
+Finally, the target space is intentionally speech-native: it models measurable response behaviors, not semantic appropriateness, task success, factuality, user satisfaction, or naturalness as a direct human label.
 
 \section{Conclusion}
-We presented a conversation-context conditioned framework for evaluating S2S response naturalness through distributions over interpretable speech measurements.
-The paper extends reference-based prosody and rhythm evaluation for spoken dialogue systems from static matched regimes to learned conditional response distributions, and uses TRACE-derived EmotiVoice examples as an external unnaturalness probe \cite{DISTRIB,TRACE}.
-Using a 12-metric naturalness target space, interpretable metric and context features with a five-turn history give the best held-out natural prediction, while embedding-augmented models provide stronger natural-vs-EmotiVoice separation.
-Human ratings independently confirm that the EmotiVoice condition is perceived as less natural than natural/reference speech, especially in emotion flow and speaking style.
-Future work will convert the posterior fit scores into a prior-predictive evaluator and directly validate per-item scores against listener judgments.
+We presented a conversation-conditioned framework for analyzing S2S response naturalness through distributions over interpretable speech behavior measurements.
+The paper extends reference-based prosody and rhythm evaluation for spoken dialogue systems from static matched regimes to learned conditional response distributions, and uses TRACE-derived EmotiVoice examples as an external synthetic probe \cite{DISTRIB,TRACE}.
+Using a 12-measure response space, interpretable metric and context features with a five-turn history give the strongest held-out natural posterior fit, while embedding-augmented models provide stronger natural-vs-probe separation.
+Human ratings independently confirm that the EmotiVoice probe conditions are perceived as less natural than natural/reference speech, especially in emotion flow and speaking style.
+Future work will convert the posterior fit scores into a prior-predictive scoring model and directly validate per-item scores against listener judgments.
 
 \bibliographystyle{IEEEtran}
 \bibliography{newbib}
